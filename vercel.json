@@ -3,7 +3,12 @@
     "builds": [
         {
             "src": "app.py",
-            "use": "@vercel/python"
+            "use": "@vercel/python",
+            "config": {
+                "maxLambdaSize": "15mb",
+                "runtime": "python3.9",
+                "requirementsPath": "requirements-prod.txt"
+            }
         },
         {
             "src": "frontend/**",
@@ -12,7 +17,7 @@
     ],
     "routes": [
         {
-            "src": "/verify-news",
+            "src": "/api/(.*)",
             "dest": "app.py"
         },
         {

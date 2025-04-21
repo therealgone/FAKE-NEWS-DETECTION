@@ -38,6 +38,9 @@ model/*.pkl
 *.log
 temp/
 uploads/
+archive/
+archive/*
+*.csv
 
 # Node
 node_modules/
