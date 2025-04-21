@@ -2,7 +2,7 @@ fastapi==0.109.2
 uvicorn==0.27.1
 python-multipart==0.0.9
 google-generativeai==0.3.2
-scikit-learn==1.4.1
+scikit-learn>=1.4.0,<1.5
 pandas==2.2.1
 numpy==1.26.4
 requests==2.31.0

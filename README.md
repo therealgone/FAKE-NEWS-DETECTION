@@ -1,4 +1,9 @@
+# Accelerated Data Science Project
+Developed by Jeevan Baabu
 # Fake News Detector
+
+
+Fake News Detector
 
 A full-stack application that uses AI and Google's Gemini model to detect and verify news articles. The application combines machine learning-based classification with advanced fact-checking capabilities.
 
