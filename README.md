@@ -1,5 +1,5 @@
 # Accelerated Data Science Project
-# Developed by Jeevan Baabu
+Developed by Jeevan Baabu
 # Fake News Detector
 
 
