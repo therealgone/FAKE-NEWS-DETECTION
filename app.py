@@ -1,17 +1,12 @@
-from fastapi import FastAPI, UploadFile, Form, HTTPException
+from fastapi import FastAPI, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import google.generativeai as genai
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
 import joblib
 import os
-from dotenv import load_dotenv
-import requests
-from bs4 import BeautifulSoup
+import httpx
+from lxml import html
+import base64
 import json
-
-# Load environment variables
-load_dotenv()
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -29,30 +24,30 @@ app.add_middleware(
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-pro')
 
-# Load ML model and vectorizer
-try:
-    vectorizer = joblib.load('model/vectorizer.pkl')
-    clf = joblib.load('model/model.pkl')
-except:
-    # For Vercel deployment, load models from environment variables
-    import base64
-    vectorizer = joblib.load(base64.b64decode(os.getenv("VECTORIZER_BASE64")))
-    clf = joblib.load(base64.b64decode(os.getenv("MODEL_BASE64")))
+# Load ML model and vectorizer from environment variables
+vectorizer = joblib.load(base64.b64decode(os.getenv("VECTORIZER_BASE64")))
+clf = joblib.load(base64.b64decode(os.getenv("MODEL_BASE64")))
 
-def extract_text_from_url(url):
+async def extract_text_from_url(url):
+    """Extract text from URL using httpx and lxml."""
     try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-        response = requests.get(url, headers=headers, timeout=15)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Extract main content
-        article_text = ""
-        for p in soup.find_all('p'):
-            article_text += p.get_text() + "\n"
+        async with httpx.AsyncClient() as client:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            response = await client.get(url, headers=headers, timeout=15.0)
+            response.raise_for_status()
             
-        return article_text.strip()
+            # Parse HTML
+            tree = html.fromstring(response.text)
+            # Extract paragraphs
+            paragraphs = tree.xpath('//p/text()')
+            article_text = ' '.join(p.strip() for p in paragraphs if p.strip())
+            
+            if not article_text:
+                raise HTTPException(status_code=400, detail="Could not extract text from URL")
+                
+            return article_text
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error extracting text from URL: {str(e)}")
 
@@ -63,7 +58,7 @@ async def verify_news(
 ):
     try:
         # Get text content
-        content = text if text else extract_text_from_url(url) if url else None
+        content = text if text else await extract_text_from_url(url) if url else None
         if not content:
             raise HTTPException(status_code=400, detail="Please provide either URL or text content")
 
@@ -72,21 +67,14 @@ async def verify_news(
         prediction = clf.predict(X)[0]
         confidence = max(clf.predict_proba(X)[0])
 
-        # Gemini verification
-        prompt = f"""Analyze this news article for authenticity. Consider:
-        1. Factual accuracy
-        2. Source credibility
-        3. Cross-reference with known facts
-        4. Potential bias or misleading information
-
-        Article text:
-        {content[:5000]}  # Limit text length for Gemini
-
-        Provide a structured analysis with:
-        - Summary of key claims
-        - Fact-checking results
-        - Credibility assessment
-        - Final verdict
+        # Gemini verification (with shorter prompt)
+        prompt = f"""Analyze this news article for authenticity:
+        {content[:3000]}
+        
+        Provide:
+        1. Key claims verification
+        2. Credibility assessment
+        3. Final verdict
         """
 
         gemini_response = model.generate_content(prompt)
