@@ -1,4 +1,6 @@
 # Fake News Detection System
+Jeevan Baabu Murugan
+ADS Project
 
 A modern web application that uses AI to detect and verify fake news articles. Built with FastAPI, React, and Google's Gemini AI.
 
