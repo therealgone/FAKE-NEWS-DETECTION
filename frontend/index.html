@@ -1,24 +1,49 @@
 <!DOCTYPE html>
-<html lang="en" class="dark-theme">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fake News Detection - ADS Project</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <title>Fake News Detector - ADS Project</title>
+    
+    <!-- React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone@7.22.17/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom styles -->
     <link href="styles.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <meta name="theme-color" content="#202124">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            100: '#1a1a1a',
+                            200: '#242424',
+                            300: '#2a2a2a'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
 </head>
 <body class="dark-theme">
-    <div class="main-container">
-        <h1 class="page-title">FAKE NEWS DETECTION</h1>
-        <h2 class="sub-title">Accelerated Data Science Project</h2>
-        <p class="author-credit">Developed by Jeevan Baabu</p>
-        <div id="root"></div>
+    <div id="root">
+        <!-- Loading state -->
+        <div class="main-container">
+            <div class="loading"></div>
+        </div>
     </div>
-    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    
+    <!-- App -->
     <script type="text/babel" src="app.js"></script>
 </body>
 </html> 
