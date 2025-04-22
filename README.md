@@ -2,6 +2,9 @@
 Jeevan Baabu Murugan
 ADS Project
 
+![Fake News Detector UI](Fake%20News%20Detector%20UI.png)
+
+
 A modern web application that uses AI to detect and verify fake news articles. Built with FastAPI, React, and Google's Gemini AI.
 
 ## Features
@@ -71,6 +74,7 @@ A modern web application that uses AI to detect and verify fake news articles. B
   - Returns: Verification results with confidence score
 
 ## Technologies Used
+![System Architecture](System%20Arch.png)
 
 - **Backend**:
   - FastAPI
