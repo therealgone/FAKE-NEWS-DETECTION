@@ -11,6 +11,44 @@ function App() {
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [serverStatus, setServerStatus] = useState('checking'); // 'checking', 'online', 'offline'
+
+    // Check server status on component mount
+    React.useEffect(() => {
+        const checkServerStatus = async () => {
+            try {
+                console.log('Checking server status...');
+                const response = await fetch('http://localhost:8000/api/health', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    mode: 'cors',
+                });
+                
+                console.log('Server status response:', response.status);
+                if (response.ok) {
+                    setServerStatus('online');
+                    console.log('Server is online');
+                } else {
+                    setServerStatus('offline');
+                    console.log('Server returned error status');
+                }
+            } catch (err) {
+                console.error('Server connection error:', err);
+                setServerStatus('offline');
+            }
+        };
+        
+        checkServerStatus();
+        
+        // Set up periodic server status check
+        const intervalId = setInterval(checkServerStatus, 10000); // Check every 10 seconds
+        
+        // Clean up interval on component unmount
+        return () => clearInterval(intervalId);
+    }, []);
 
     const handleFileChange = (e) => {
         const selectedFile = e.target.files[0];
@@ -62,6 +100,11 @@ function App() {
                 throw new Error('Please provide a news article via file upload, URL, or text.');
             }
 
+            // Check if server is online
+            if (serverStatus === 'offline') {
+                throw new Error('Server is currently offline. Please try again later.');
+            }
+
             const formData = new FormData();
             
             // If file is provided
@@ -81,10 +124,19 @@ function App() {
             }
 
             console.log('Sending request to backend...');
+            
+            // Add timeout to fetch request
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+            
             const response = await fetch('http://localhost:8000/api/verify', {
                 method: 'POST',
                 body: formData,
+                signal: controller.signal,
+                mode: 'cors',
             });
+            
+            clearTimeout(timeoutId);
 
             console.log('Response status:', response.status);
             const responseText = await response.text();
@@ -106,12 +158,22 @@ function App() {
 
             // Clear inputs after successful submission
             setFile(null);
+            setFilePreview(null);
             setUrl('');
             setText('');
 
         } catch (err) {
             console.error('Error:', err);
-            setError(err.message);
+            
+            // Handle specific error types
+            if (err.name === 'AbortError') {
+                setError('Request timed out. The server is taking too long to respond. Please try again.');
+            } else if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+                setError('Could not connect to the server. Please check if the server is running and try again.');
+                setServerStatus('offline');
+            } else {
+                setError(err.message);
+            }
         } finally {
             setLoading(false);
         }
@@ -137,6 +199,16 @@ function App() {
             <h1 className="page-title">Fake News Detector</h1>
             <p className="sub-title">Accelerated Data Science Project</p>
             <p className="author-credit">Developed by Jeevan Baabu</p>
+            
+            {/* Server Status Indicator */}
+            {serverStatus === 'offline' && (
+                <div className="server-status-error">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                    <span>Server is offline. Please try again later.</span>
+                </div>
+            )}
             
             <form onSubmit={handleSubmit} className="input-container w-full max-w-3xl">
                 {/* File Upload */}
@@ -257,7 +329,7 @@ function App() {
                 {/* Submit Button */}
                 <button
                     type="submit"
-                    disabled={loading || (!file && !url && !text)}
+                    disabled={loading || (!file && !url && !text) || serverStatus === 'offline'}
                     className="button"
                 >
                     {loading ? (

@@ -11,60 +11,62 @@ import io
 from PIL import Image
 import datetime
 import base64
+from dotenv import load_dotenv
+from xml.etree import ElementTree
+
+# Load environment variables
+load_dotenv()
 
 # Initialize FastAPI app
 app = FastAPI()
 
-# CORS middleware
+# CORS middleware with more specific settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000"],  # Frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Configure Gemini
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_API_KEY = "AIzaSyAUXbOGCh23NtPYQfF0uPKit5XTtBuQRn4"
 if not GOOGLE_API_KEY:
     raise ValueError("Please set the GOOGLE_API_KEY environment variable")
 
 genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest")
+model = genai.GenerativeModel('gemini-1.5-pro-latest')
 
-# OCR.space API key - you can get a free one at https://ocr.space/ocrapi
-OCR_API_KEY = os.getenv("OCR_API_KEY", "K89675090788957")  # Free test key, replace with your own
+# OCR.space API key
+OCR_API_KEY = os.getenv("OCR_API_KEY", "K89675090788957")
 
 def extract_text_from_url(url: str) -> str:
+    """Extract text from a news article URL."""
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        response = requests.get(url, headers=headers, timeout=15)
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # Remove unwanted elements
-        for tag in soup(['script', 'style', 'nav', 'header', 'footer', 'aside']):
-            tag.decompose()
+        # Remove script and style elements
+        for script in soup(["script", "style"]):
+            script.decompose()
+            
+        # Get text from paragraphs
+        paragraphs = soup.find_all('p')
+        text = ' '.join([p.get_text().strip() for p in paragraphs if p.get_text().strip()])
         
-        # Try to find the main article content
-        article = soup.find('article') or soup.find(class_='article-content') or soup.find(role='main')
-        
-        if article:
-            text = article.get_text(separator='\n', strip=True)
-        else:
-            # Fallback to getting all paragraph text
-            paragraphs = soup.find_all('p')
-            text = '\n'.join(p.get_text(strip=True) for p in paragraphs if len(p.get_text(strip=True)) > 50)
-        
-        if not text or len(text) < 100:
-            raise ValueError("Could not extract sufficient text from the URL. Please paste the article text directly.")
-        
-        return text
+        if not text or len(text.strip()) < 50:
+            raise ValueError("Could not extract sufficient text from the URL. Please try pasting the article text directly.")
+            
+        return text.strip()
+    except requests.exceptions.RequestException as e:
+        raise ValueError(f"Error accessing URL: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error extracting text from URL: {str(e)}")
+        raise ValueError(f"Error processing URL: {str(e)}")
 
 def extract_text_from_pdf(file_content: bytes) -> str:
     try:
@@ -157,11 +159,34 @@ def extract_text_from_image(image_content: bytes) -> str:
 
 def search_news_sources(query: str) -> list:
     try:
-        # Use DuckDuckGo or another search API to find related news articles
-        search_url = f"https://api.duckduckgo.com/?q={query}&format=json"
-        response = requests.get(search_url)
-        results = response.json()
-        return results.get('RelatedTopics', [])[:4]  # Get top 4 related articles
+        # Extract key terms from the query for better search
+        key_terms = ' '.join(query.split()[:10])  # Use first 10 words
+        
+        # Use Google News search
+        search_url = f"https://news.google.com/rss/search?q={key_terms}&hl=en-US&gl=US&ceid=US:en"
+        response = requests.get(search_url, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        })
+        
+        if response.status_code != 200:
+            print(f"News search failed with status {response.status_code}")
+            return []
+            
+        # Parse the RSS feed
+        root = ElementTree.fromstring(response.content)
+        
+        # Extract news items
+        news_items = []
+        for item in root.findall('.//item')[:5]:  # Get top 5 news items
+            title = item.find('title').text
+            link = item.find('link').text
+            news_items.append({
+                'title': title,
+                'link': link,
+                'snippet': title  # Use title as snippet since we don't have description
+            })
+            
+        return news_items
     except Exception as e:
         print(f"Search error: {str(e)}")
         return []
@@ -216,6 +241,12 @@ async def verify_news(
                 detail="Please provide either text or file"
             )
 
+        if not content or len(content.strip()) < 50:
+            raise HTTPException(
+                status_code=400,
+                detail="The provided content is too short. Please provide a longer article text."
+            )
+
         # Search for related news articles
         search_results = search_news_sources(content[:200])
         current_date = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -263,9 +294,19 @@ Keep responses concise and factual. Focus on verifiable information."""
             "verification": response.text
         }
 
+    except HTTPException as he:
+        raise he
     except Exception as e:
         print(f"Error in verify_news: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while processing your request: {str(e)}"
+        )
+
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint to verify server status."""
+    return {"status": "healthy"}
 
 if __name__ == "__main__":
     import uvicorn
