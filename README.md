@@ -74,6 +74,7 @@ A modern web application that uses AI to detect and verify fake news articles. B
   - Returns: Verification results with confidence score
 
 ## Technologies Used
+![System Architecture](System%20Arch.png)
 
 - **Backend**:
   - FastAPI
