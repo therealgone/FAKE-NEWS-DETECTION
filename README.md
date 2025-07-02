@@ -12,7 +12,6 @@ A modern web application that uses AI to detect and verify fake news articles. B
 - **Multiple Input Methods**:
   - Upload images (PNG, JPG, JPEG) or PDFs
   - Paste article URLs
-  - Direct text input
   - Image preview with remove option
   - File size validation (10MB limit)
 
