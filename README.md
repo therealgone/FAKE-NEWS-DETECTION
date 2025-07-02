@@ -1,6 +1,6 @@
 # Fake News Detection System
 Jeevan Baabu Murugan
-ADS Project
+ADS Project 
 
 ![Fake News Detector UI](Fake%20News%20Detector%20UI.png)
 
@@ -26,7 +26,7 @@ A modern web application that uses AI to detect and verify fake news articles. B
   - Google Gemini AI integration
   - Cross-reference with multiple sources
   - Detailed verification reports
-  - Confidence scoring
+
 
 - **Modern UI/UX**:
   - Dark theme
