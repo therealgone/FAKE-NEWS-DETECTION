@@ -1,4 +1,4 @@
-# Fake News Detection 
+# Fake News Detection
 Jeevan Baabu Murugan
 ADS Project 
 
